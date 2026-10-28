@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Đặt hàng{% endblock %}
+{% block content %}
+<h1>Thông tin giao hàng</h1>
+<form method="post" class="form">
+  <label>Họ và tên<input name="name" required value="{{ current_user_name or '' }}"></label>
+  <label>Số điện thoại<input name="phone" required pattern="[0-9+ ]{9,15}"></label>
+  <label>Địa chỉ nhận hàng<textarea name="address" rows="3" required></textarea></label>
+  <p class="muted small">Thanh toán khi nhận hàng (COD).</p>
+  <button class="btn">Xác nhận đặt hàng</button>
+</form>
+{% endblock %}

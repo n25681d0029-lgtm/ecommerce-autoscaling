@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Trang chủ{% endblock %}
+{% block content %}
+{% if not q and not current_cat and page == 1 %}
+<section class="hero">
+  <div>
+    <h1>Mua sắm công nghệ, sẵn sàng cho mọi đợt cao điểm</h1>
+    <p>Website chạy trên nhiều máy chủ EC2 phía sau Application Load Balancer. Khi lượng truy cập tăng, Auto Scaling tự thêm máy chủ; khi vắng khách, tự giảm để tiết kiệm chi phí.</p>
+  </div>
+</section>
+{% endif %}
+<div class="layout">
+  <aside class="sidebar">
+    <h3>Danh mục</h3>
+    <a class="{{ 'active' if not current_cat }}" href="{{ url_for('shop.index') }}">Tất cả sản phẩm</a>
+    {% for c in categories %}
+      <a class="{{ 'active' if current_cat and current_cat.id == c.id }}" href="{{ url_for('shop.index', cat=c.slug) }}">{{ c.name }}</a>
+    {% endfor %}
+  </aside>
+  <section>
+    <div class="toolbar">
+      <span>{{ total }} sản phẩm{% if q %} cho “{{ q }}”{% endif %}{% if current_cat %} trong {{ current_cat.name }}{% endif %}</span>
+      <form>
+        {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+        {% if current_cat %}<input type="hidden" name="cat" value="{{ current_cat.slug }}">{% endif %}
+        <select name="sort" onchange="this.form.submit()">
+          <option value="featured" {{ 'selected' if sort=='featured' }}>Nổi bật</option>
+          <option value="new" {{ 'selected' if sort=='new' }}>Mới nhất</option>
+          <option value="price_asc" {{ 'selected' if sort=='price_asc' }}>Giá tăng dần</option>
+          <option value="price_desc" {{ 'selected' if sort=='price_desc' }}>Giá giảm dần</option>
+        </select>
+      </form>
+    </div>
+    <div class="grid">
+      {% for p in products %}
+      <article class="card">
+        <a href="{{ url_for('shop.product_detail', pid=p.id) }}"><img src="{{ url_for('shop.product_image', pid=p.id) }}" alt="{{ p.name }}"></a>
+        <div class="card-body">
+          <a class="pname" href="{{ url_for('shop.product_detail', pid=p.id) }}">{{ p.name }}</a>
+          <div class="price">{{ p.price|vnd }}</div>
+          <form method="post" action="{{ url_for('shop.cart_add', pid=p.id) }}">
+            <button class="btn btn-sm" {{ 'disabled' if p.stock == 0 }}>{{ 'Thêm vào giỏ' if p.stock else 'Hết hàng' }}</button>
+          </form>
+        </div>
+      </article>
+      {% else %}
+      <p>Không tìm thấy sản phẩm phù hợp.</p>
+      {% endfor %}
+    </div>
+    {% if pages > 1 %}
+    <div class="pager">
+      {% for i in range(1, pages + 1) %}
+        <a class="{{ 'active' if i == page }}" href="{{ url_for('shop.index', q=q or None, cat=current_cat.slug if current_cat else None, sort=sort, page=i) }}">{{ i }}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

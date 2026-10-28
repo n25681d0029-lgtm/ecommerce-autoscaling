@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% set titles = {403: "Không có quyền truy cập", 404: "Không tìm thấy trang", 500: "Máy chủ gặp sự cố"} %}
+{% block title %}{{ titles.get(code, "Lỗi") }}{% endblock %}
+{% block content %}
+<div class="error-box">
+  <div class="error-code">{{ code }}</div>
+  <h1>{{ titles.get(code, "Đã xảy ra lỗi") }}</h1>
+  {% if code == 404 %}
+    <p>Trang hoặc sản phẩm bạn tìm không tồn tại hoặc đã ngừng bán.</p>
+  {% elif code == 403 %}
+    <p>Bạn không có quyền thực hiện thao tác này.</p>
+  {% else %}
+    <p>Request này gặp lỗi trên máy chủ <b class="mono">{{ server.instance_id }}</b>. Hãy thử lại sau ít phút; Load Balancer sẽ chuyển bạn sang máy chủ khỏe nếu máy này gặp sự cố.</p>
+  {% endif %}
+  <a class="btn" href="{{ url_for('shop.index') }}">Về trang chủ</a>
+</div>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Tra cứu đơn hàng{% endblock %}
+{% block content %}
+<h1>Tra cứu đơn hàng</h1>
+<form method="post" class="form">
+  <label>Mã đơn hàng<input name="code" required placeholder="VD: DH261021A1B2C3"></label>
+  <button class="btn">Tra cứu</button>
+</form>
+{% endblock %}

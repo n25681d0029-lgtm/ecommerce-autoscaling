@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Cân bằng tải trực tiếp{% endblock %}
+{% block content %}
+<h1>Cân bằng tải trực tiếp</h1>
+<p class="muted">Trình duyệt gửi liên tục request tới <code>/api/whoami</code> qua Application Load Balancer và đếm xem mỗi instance trả lời bao nhiêu request.
+Khi Auto Scaling thêm máy chủ, instance mới sẽ xuất hiện trong bảng ngay khi vượt qua health check; khi giảm, instance bị gỡ sẽ ngừng tăng số đếm.</p>
+
+<div class="row live-controls">
+  <button class="btn" id="toggle">Tạm dừng</button>
+  <button class="btn btn-ghost" id="reset">Đặt lại</button>
+  <label class="row small">Tốc độ
+    <select id="rate">
+      <option value="1000">1 request/giây</option>
+      <option value="200" selected>5 request/giây</option>
+      <option value="100">10 request/giây</option>
+    </select>
+  </label>
+</div>
+
+<div class="stats">
+  <div class="stat"><span>Tổng request</span><b id="total">0</b></div>
+  <div class="stat"><span>Số instance đã trả lời</span><b id="ninst">0</b></div>
+  <div class="stat"><span>Instance hoạt động (30 giây qua)</span><b id="nactive">0</b></div>
+  <div class="stat"><span>Lỗi / độ trễ TB</span><b><span id="errors">0</span> / <span id="latency">–</span> ms</b></div>
+</div>
+
+<h2>50 request gần nhất</h2>
+<div class="strip" id="strip"></div>
+
+<h2>Phân bổ theo instance</h2>
+<table class="table">
+  <thead><tr><th>Instance</th><th>AZ</th><th class="r">Số request</th><th style="width:38%">Tỉ lệ</th><th>Thấy lần cuối</th><th class="r">Uptime</th></tr></thead>
+  <tbody id="rows"><tr><td colspan="6" class="muted">Đang chờ phản hồi…</td></tr></tbody>
+</table>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  let running = true, total = 0, errors = 0, latSum = 0, recent = [], seen = {};
+
+  function color(id) {
+    let h = 0;
+    for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360;
+    return `hsl(${h},65%,45%)`;
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+  }
+
+  function render() {
+    const now = Date.now();
+    const ids = Object.keys(seen).sort((a, b) => seen[b].count - seen[a].count);
+    $("total").textContent = total;
+    $("ninst").textContent = ids.length;
+    $("nactive").textContent = ids.filter((id) => now - seen[id].last < 30000).length;
+    $("errors").textContent = errors;
+    $("latency").textContent = total - errors > 0 ? Math.round(latSum / (total - errors)) : "–";
+    $("strip").innerHTML = recent.map((r) =>
+      `<span class="cell" title="${esc(r)}" style="background:${r === "lỗi" ? "#c4320a" : color(r)}"></span>`).join("");
+    if (!ids.length) return;
+    $("rows").innerHTML = ids.map((id) => {
+      const s = seen[id], pct = total ? (s.count * 100 / total) : 0, age = Math.round((now - s.last) / 1000);
+      return `<tr class="${age > 30 ? "stale" : ""}">
+        <td class="mono"><span class="dot" style="background:${color(id)}"></span>${esc(id)}</td>
+        <td>${esc(s.az)}</td><td class="r">${s.count}</td>
+        <td><div class="bar"><i style="width:${pct.toFixed(1)}%;background:${color(id)}"></i></div> ${pct.toFixed(1)}%</td>
+        <td>${age <= 1 ? "vừa xong" : age + " giây trước"}</td>
+        <td class="r">${Math.floor(s.uptime / 60)} phút</td></tr>`;
+    }).join("");
+  }
+
+  function push(label) {
+    recent.push(label);
+    if (recent.length > 50) recent.shift();
+  }
+
+  async function tick() {
+    if (running) {
+      const t0 = performance.now();
+      total++;
+      try {
+        const r = await fetch("{{ url_for('system.whoami') }}?t=" + Date.now(), {cache: "no-store"});
+        if (!r.ok) throw new Error(r.status);
+        const d = await r.json();
+        latSum += performance.now() - t0;
+        const s = seen[d.instance_id] || (seen[d.instance_id] = {count: 0, az: d.az});
+        s.count++; s.last = Date.now(); s.uptime = d.uptime || 0;
+        push(d.instance_id);
+      } catch (e) {
+        errors++;
+        push("lỗi");
+      }
+      render();
+    }
+    setTimeout(tick, +$("rate").value);
+  }
+
+  $("toggle").onclick = () => { running = !running; $("toggle").textContent = running ? "Tạm dừng" : "Tiếp tục"; };
+  $("reset").onclick = () => { total = errors = latSum = 0; recent = []; seen = {}; render();
+    $("rows").innerHTML = '<tr><td colspan="6" class="muted">Đang chờ phản hồi…</td></tr>'; };
+  setInterval(render, 1000);  // cập nhật "thấy lần cuối" kể cả khi tạm dừng
+  tick();
+})();
+</script>
+{% endblock %}

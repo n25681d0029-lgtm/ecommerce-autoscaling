@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Quản trị{% endblock %}
+{% block content %}
+{% set active = 'dashboard' %}{% include "admin/_nav.html" %}
+<h1>Tổng quan cửa hàng</h1>
+<div class="stats">
+  <div class="stat"><span>Tổng số đơn</span><b>{{ stats.orders }}</b></div>
+  <div class="stat"><span>Doanh thu (trừ đơn hủy)</span><b>{{ stats.revenue|vnd }}</b></div>
+  <div class="stat"><span>Sản phẩm</span><b>{{ stats.products }}</b></div>
+  <div class="stat"><span>Sắp hết hàng (&lt;10)</span><b>{{ stats.low_stock }}</b></div>
+</div>
+
+<h2>Doanh thu 7 ngày gần nhất (UTC, trừ đơn hủy)</h2>
+<div class="bars">
+  {% for d in daily %}
+  <div class="bar-col" title="{{ d.label }}: {{ d.orders }} đơn, {{ d.revenue|vnd }}">
+    <div class="bar-val">{{ d.orders }} đơn</div>
+    <div class="bar-track"><i style="height:{{ d.pct }}%"></i></div>
+    <div class="bar-label">{{ d.label }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="two-col">
+  <section>
+    <h2>Đơn hàng mới nhất</h2>
+    <table class="table">
+      <thead><tr><th>Mã</th><th>Khách</th><th>Trạng thái</th><th class="r">Tổng</th></tr></thead>
+      <tbody>{% for o in recent %}<tr><td><a href="{{ url_for('shop.order_view', code=o.code) }}">{{ o.code }}</a></td><td>{{ o.customer_name }}</td><td>{{ o.status }}</td><td class="r">{{ o.total|vnd }}</td></tr>{% else %}<tr><td colspan="4">Chưa có đơn.</td></tr>{% endfor %}</tbody>
+    </table>
+    <h2>Bán chạy nhất</h2>
+    <table class="table">
+      <thead><tr><th>Sản phẩm</th><th class="r">Đã bán</th><th class="r">Doanh thu</th></tr></thead>
+      <tbody>{% for name, qty, rev in top %}<tr><td>{{ name }}</td><td class="r">{{ qty }}</td><td class="r">{{ rev|vnd }}</td></tr>{% else %}<tr><td colspan="3">Chưa có dữ liệu.</td></tr>{% endfor %}</tbody>
+    </table>
+  </section>
+  <section>
+    <h2>Số đơn theo máy chủ xử lý</h2>
+    <table class="table">
+      <thead><tr><th>Instance</th><th class="r">Số đơn</th></tr></thead>
+      <tbody>{% for inst, n in by_instance %}<tr><td class="mono">{{ inst }}</td><td class="r">{{ n }}</td></tr>{% else %}<tr><td colspan="2">Chưa có dữ liệu.</td></tr>{% endfor %}</tbody>
+    </table>
+    <p class="muted small">Khi Auto Scaling thêm instance, các đơn mới sẽ được phân bổ cho nhiều máy chủ khác nhau.</p>
+    <h2>Sắp hết hàng</h2>
+    <table class="table">
+      <thead><tr><th>Sản phẩm</th><th class="r">Tồn</th></tr></thead>
+      <tbody>{% for p in low %}<tr><td><a href="{{ url_for('admin.product_form', pid=p.id) }}">{{ p.name }}</a></td><td class="r warn">{{ p.stock }}</td></tr>{% else %}<tr><td colspan="2">Không có sản phẩm nào dưới 10.</td></tr>{% endfor %}</tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

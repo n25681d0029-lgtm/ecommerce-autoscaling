@@ -1,0 +1,447 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  CloudShop - Website thuong mai dien tu tu dong co gian (Auto Scaling) tren AWS.
+  VPC 2 AZ + Application Load Balancer + EC2 Auto Scaling Group + Amazon RDS MySQL + CloudWatch/SNS.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: { default: "Ma nguon" }
+        Parameters: [GitRepoUrl, GitBranch, AppSubdir]
+      - Label: { default: "May chu va Auto Scaling" }
+        Parameters: [InstanceType, MinSize, MaxSize, DesiredCapacity, CpuTargetValue, RequestsPerTargetValue]
+      - Label: { default: "Co so du lieu va bao mat" }
+        Parameters: [DBEngineVersion, DBUsername, DBPassword, AppSecretKey, AdminPassword]
+      - Label: { default: "Thong bao" }
+        Parameters: [NotificationEmail]
+
+Parameters:
+  GitRepoUrl:
+    Type: String
+    Description: URL repo GitHub CONG KHAI chua ma nguon (vd. https://github.com/<user>/cloudshop.git)
+  GitBranch:
+    Type: String
+    Default: main
+  AppSubdir:
+    Type: String
+    Default: "."
+    Description: Thu muc chua wsgi.py ben trong repo ("." neu nam o goc repo)
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    AllowedValues: [t3.micro, t3.small]
+    Description: Loai instance (ca hai deu thuoc Free Tier voi tai khoan tao tu 15/07/2025)
+  MinSize:
+    Type: Number
+    Default: 1
+    MinValue: 1
+  MaxSize:
+    Type: Number
+    Default: 4
+    MinValue: 1
+    MaxValue: 6
+  DesiredCapacity:
+    Type: Number
+    Default: 1
+    MinValue: 1
+  CpuTargetValue:
+    Type: Number
+    Default: 50
+    MinValue: 20
+    MaxValue: 90
+    Description: Muc CPU trung binh (%) ma chinh sach Target Tracking co gang duy tri
+  RequestsPerTargetValue:
+    Type: Number
+    Default: 0
+    MinValue: 0
+    Description: >-
+      (Tuy chon) So request/phut moi instance cho chinh sach Target Tracking thu hai (ALBRequestCountPerTarget).
+      0 = tat, chi co gian theo CPU. Vd. 600: them may khi moi instance nhan qua 600 request/phut.
+  DBEngineVersion:
+    Type: String
+    Default: "8.4.10"
+    Description: Phien ban MySQL 8.4 (LTS). Neu bao loi phien ban, xem danh sach trong RDS console va doi so cuoi
+  DBUsername:
+    Type: String
+    Default: shopadmin
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]{3,15}"
+  DBPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 8
+    MaxLength: 41
+    AllowedPattern: "[a-zA-Z0-9]+"
+    Description: Mat khau RDS (8-41 ky tu, chi chu va so)
+  AppSecretKey:
+    Type: String
+    NoEcho: true
+    MinLength: 16
+    AllowedPattern: "[a-zA-Z0-9]+"
+    Description: Khoa ky cookie phien, GIONG NHAU tren moi instance (>=16 ky tu chu/so)
+  AdminPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 8
+    AllowedPattern: "[a-zA-Z0-9@#!_.-]+"
+    Description: Mat khau tai khoan admin@shop.local cua website
+  NotificationEmail:
+    Type: String
+    Default: ""
+    Description: (Tuy chon) Email nhan thong bao moi lan Auto Scaling them/bot instance
+  LatestAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+    Description: AMI Amazon Linux 2023 moi nhat (lay tu SSM Parameter Store)
+
+Conditions:
+  HasEmail: !Not [!Equals [!Ref NotificationEmail, ""]]
+  HasRequestPolicy: !Not [!Equals [!Ref RequestsPerTargetValue, "0"]]
+
+Resources:
+  # ---------------------------------------------------------------- Mang
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.20.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags: [{ Key: Name, Value: !Sub "${AWS::StackName}-vpc" }]
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: { VpcId: !Ref VPC, InternetGatewayId: !Ref InternetGateway }
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.20.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags: [{ Key: Name, Value: !Sub "${AWS::StackName}-public-a" }]
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.20.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags: [{ Key: Name, Value: !Sub "${AWS::StackName}-public-b" }]
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.20.11.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags: [{ Key: Name, Value: !Sub "${AWS::StackName}-private-a" }]
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.20.12.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags: [{ Key: Name, Value: !Sub "${AWS::StackName}-private-b" }]
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: { VpcId: !Ref VPC }
+  DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PublicAssocA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PublicSubnetA, RouteTableId: !Ref PublicRouteTable }
+  PublicAssocB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PublicSubnetB, RouteTableId: !Ref PublicRouteTable }
+
+  # ------------------------------------------------------- Security Group
+  AlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB - cho phep HTTP tu Internet
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0 }
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: EC2 - chi nhan cong 8000 tu ALB
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 8000, ToPort: 8000, SourceSecurityGroupId: !Ref AlbSecurityGroup }
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RDS - chi nhan cong 3306 tu EC2
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 3306, ToPort: 3306, SourceSecurityGroupId: !Ref AppSecurityGroup }
+
+  # ------------------------------------------------------------ Database
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet rieng cho RDS
+      SubnetIds: [!Ref PrivateSubnetA, !Ref PrivateSubnetB]
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Engine: mysql
+      EngineVersion: !Ref DBEngineVersion
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: "20"
+      StorageType: gp2
+      DBName: shop
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VPCSecurityGroups: [!Ref DbSecurityGroup]
+      PubliclyAccessible: false
+      MultiAZ: false
+      BackupRetentionPeriod: 0
+      DeleteAutomatedBackups: true
+
+  # ------------------------------------------------------- Load Balancer
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref VPC
+      Protocol: HTTP
+      Port: 8000
+      TargetType: instance
+      HealthCheckPath: /health
+      HealthCheckIntervalSeconds: 15
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Matcher: { HttpCode: "200" }
+      TargetGroupAttributes:
+        - { Key: deregistration_delay.timeout_seconds, Value: "30" }
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: application
+      Scheme: internet-facing
+      Subnets: [!Ref PublicSubnetA, !Ref PublicSubnetB]
+      SecurityGroups: [!Ref AlbSecurityGroup]
+  HttpListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - { Type: forward, TargetGroupArn: !Ref TargetGroup }
+
+  # ------------------------------------------------- Launch Template + ASG
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub "${AWS::StackName}-lt"
+      LaunchTemplateData:
+        ImageId: !Ref LatestAmiId
+        InstanceType: !Ref InstanceType
+        SecurityGroupIds: [!Ref AppSecurityGroup]
+        Monitoring: { Enabled: true }        # CloudWatch detailed monitoring: so lieu 1 phut
+        MetadataOptions: { HttpTokens: required, HttpEndpoint: enabled }  # bat buoc IMDSv2
+        TagSpecifications:
+          - ResourceType: instance
+            Tags: [{ Key: Name, Value: !Sub "${AWS::StackName}-web" }]
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            set -euxo pipefail
+            dnf install -y python3.11 python3.11-pip git
+            id cloudshop || useradd -r -m -d /opt/cloudshop cloudshop
+            rm -rf /opt/cloudshop/src
+            git clone --depth 1 -b "${GitBranch}" "${GitRepoUrl}" /opt/cloudshop/src
+            APPDIR=/opt/cloudshop/src/${AppSubdir}
+            python3.11 -m venv /opt/cloudshop/venv
+            /opt/cloudshop/venv/bin/pip install --upgrade pip
+            /opt/cloudshop/venv/bin/pip install -r "$APPDIR/requirements.txt"
+            cat > /etc/cloudshop.env <<EOF
+            DATABASE_URL=mysql+pymysql://${DBUsername}:${DBPassword}@${Database.Endpoint.Address}:3306/shop?charset=utf8mb4
+            SECRET_KEY=${AppSecretKey}
+            ADMIN_PASSWORD=${AdminPassword}
+            EOF
+            chmod 600 /etc/cloudshop.env
+            chown -R cloudshop:cloudshop /opt/cloudshop
+            cat > /etc/systemd/system/cloudshop.service <<EOF
+            [Unit]
+            Description=CloudShop (gunicorn)
+            After=network-online.target
+            [Service]
+            User=cloudshop
+            WorkingDirectory=$APPDIR
+            EnvironmentFile=/etc/cloudshop.env
+            ExecStart=/opt/cloudshop/venv/bin/gunicorn --workers 3 --threads 2 --bind 0.0.0.0:8000 --timeout 60 --keep-alive 75 --access-logfile - wsgi:app
+            Restart=always
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+            systemctl daemon-reload
+            systemctl enable --now cloudshop
+
+  ScalingTopic:
+    Type: AWS::SNS::Topic
+    Condition: HasEmail
+    Properties:
+      Subscription: [{ Protocol: email, Endpoint: !Ref NotificationEmail }]
+
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn: HttpListener
+    Properties:
+      VPCZoneIdentifier: [!Ref PublicSubnetA, !Ref PublicSubnetB]
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      MinSize: !Ref MinSize
+      MaxSize: !Ref MaxSize
+      DesiredCapacity: !Ref DesiredCapacity
+      TargetGroupARNs: [!Ref TargetGroup]
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 300
+      DefaultInstanceWarmup: 180
+      MetricsCollection:
+        - Granularity: 1Minute
+      NotificationConfigurations: !If
+        - HasEmail
+        - - TopicARN: !Ref ScalingTopic
+            NotificationTypes:
+              - autoscaling:EC2_INSTANCE_LAUNCH
+              - autoscaling:EC2_INSTANCE_TERMINATE
+              - autoscaling:EC2_INSTANCE_LAUNCH_ERROR
+        - !Ref AWS::NoValue
+      Tags:
+        - { Key: Project, Value: CloudShop, PropagateAtLaunch: true }
+
+  CpuTargetTrackingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: !Ref CpuTargetValue
+
+  # Chinh sach thu hai (tuy chon): co gian theo so request moi instance nhan tu ALB.
+  # Khi co nhieu chinh sach, ASG chon muc capacity LON NHAT ma cac chinh sach de xuat.
+  RequestCountTrackingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Condition: HasRequestPolicy
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ALBRequestCountPerTarget
+          ResourceLabel: !Sub "${LoadBalancer.LoadBalancerFullName}/${TargetGroup.TargetGroupFullName}"
+        TargetValue: !Ref RequestsPerTargetValue
+
+  # Bang dieu khien CloudWatch: so instance, CPU, request, do tre, loi, RDS tren cung mot man hinh
+  MonitoringDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "${AWS::StackName}-dashboard"
+      DashboardBody: !Sub |
+        {
+          "start": "-PT1H",
+          "periodOverride": "inherit",
+          "widgets": [
+            {"type": "metric", "x": 0, "y": 0, "width": 12, "height": 6, "properties": {
+              "title": "So instance (Auto Scaling Group)", "region": "${AWS::Region}", "view": "timeSeries",
+              "stat": "Maximum", "period": 60,
+              "metrics": [
+                ["AWS/AutoScaling", "GroupInServiceInstances", "AutoScalingGroupName", "${AutoScalingGroup}", {"label": "InService"}],
+                [".", "GroupDesiredCapacity", ".", ".", {"label": "Desired"}],
+                [".", "GroupPendingInstances", ".", ".", {"label": "Pending"}]
+              ],
+              "yAxis": {"left": {"min": 0, "max": ${MaxSize}}}}},
+            {"type": "metric", "x": 12, "y": 0, "width": 12, "height": 6, "properties": {
+              "title": "CPU trung binh cua nhom (%)", "region": "${AWS::Region}", "view": "timeSeries",
+              "stat": "Average", "period": 60,
+              "metrics": [["AWS/EC2", "CPUUtilization", "AutoScalingGroupName", "${AutoScalingGroup}", {"label": "CPU"}]],
+              "annotations": {"horizontal": [{"label": "Muc tieu Target Tracking", "value": ${CpuTargetValue}}]},
+              "yAxis": {"left": {"min": 0, "max": 100}}}},
+            {"type": "metric", "x": 0, "y": 6, "width": 8, "height": 6, "properties": {
+              "title": "Request/phut qua ALB", "region": "${AWS::Region}", "view": "timeSeries",
+              "stat": "Sum", "period": 60,
+              "metrics": [
+                ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", "${LoadBalancer.LoadBalancerFullName}", {"label": "Tong"}],
+                ["AWS/ApplicationELB", "RequestCountPerTarget", "TargetGroup", "${TargetGroup.TargetGroupFullName}", "LoadBalancer", "${LoadBalancer.LoadBalancerFullName}", {"label": "Moi instance"}]
+              ]}},
+            {"type": "metric", "x": 8, "y": 6, "width": 8, "height": 6, "properties": {
+              "title": "Thoi gian phan hoi (giay)", "region": "${AWS::Region}", "view": "timeSeries",
+              "period": 60,
+              "metrics": [
+                ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", "${LoadBalancer.LoadBalancerFullName}", {"stat": "Average", "label": "Trung binh"}],
+                ["...", {"stat": "p95", "label": "p95"}]
+              ]}},
+            {"type": "metric", "x": 16, "y": 6, "width": 8, "height": 6, "properties": {
+              "title": "Target khoe / khong khoe va loi 5xx", "region": "${AWS::Region}", "view": "timeSeries",
+              "period": 60,
+              "metrics": [
+                ["AWS/ApplicationELB", "HealthyHostCount", "TargetGroup", "${TargetGroup.TargetGroupFullName}", "LoadBalancer", "${LoadBalancer.LoadBalancerFullName}", {"stat": "Minimum", "label": "Healthy"}],
+                [".", "UnHealthyHostCount", ".", ".", ".", ".", {"stat": "Maximum", "label": "Unhealthy"}],
+                [".", "HTTPCode_Target_5XX_Count", ".", ".", ".", ".", {"stat": "Sum", "label": "5xx tu EC2"}],
+                [".", "HTTPCode_ELB_5XX_Count", "LoadBalancer", "${LoadBalancer.LoadBalancerFullName}", {"stat": "Sum", "label": "5xx tu ALB"}]
+              ]}},
+            {"type": "metric", "x": 0, "y": 12, "width": 12, "height": 6, "properties": {
+              "title": "RDS MySQL: CPU (%) va so ket noi", "region": "${AWS::Region}", "view": "timeSeries",
+              "stat": "Average", "period": 60,
+              "metrics": [
+                ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", "${Database}", {"label": "CPU RDS"}],
+                [".", "DatabaseConnections", ".", ".", {"label": "Ket noi", "yAxis": "right"}]
+              ]}},
+            {"type": "text", "x": 12, "y": 12, "width": 12, "height": 6, "properties": {
+              "markdown": "## CloudShop\nWebsite: http://${LoadBalancer.DNSName}\n\nTrang demo can bang tai: http://${LoadBalancer.DNSName}/system/live\n\nChinh sach co gian: Target Tracking CPU ${CpuTargetValue}% (min ${MinSize}, max ${MaxSize}). Xem tab **Activity** cua Auto Scaling Group de biet thoi diem them/bot instance."}}
+          ]
+        }
+
+  # Canh bao rieng: co instance khong khoe (de theo doi trong CloudWatch)
+  UnhealthyHostAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Co it nhat 1 target khong khoe trong 2 phut
+      Namespace: AWS/ApplicationELB
+      MetricName: UnHealthyHostCount
+      Dimensions:
+        - { Name: LoadBalancer, Value: !GetAtt LoadBalancer.LoadBalancerFullName }
+        - { Name: TargetGroup, Value: !GetAtt TargetGroup.TargetGroupFullName }
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasEmail, [!Ref ScalingTopic], !Ref AWS::NoValue]
+
+Outputs:
+  WebsiteURL:
+    Description: Dia chi website (qua Application Load Balancer)
+    Value: !Sub "http://${LoadBalancer.DNSName}"
+  LiveDemoURL:
+    Description: Trang demo can bang tai truc tiep
+    Value: !Sub "http://${LoadBalancer.DNSName}/system/live"
+  DashboardURL:
+    Description: Bang dieu khien CloudWatch cua stack
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${MonitoringDashboard}"
+  AutoScalingGroupName:
+    Value: !Ref AutoScalingGroup
+  LoadBalancerFullName:
+    Value: !GetAtt LoadBalancer.LoadBalancerFullName
+  TargetGroupFullName:
+    Value: !GetAtt TargetGroup.TargetGroupFullName
+  DatabaseEndpoint:
+    Value: !GetAtt Database.Endpoint.Address

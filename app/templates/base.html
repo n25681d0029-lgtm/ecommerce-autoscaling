@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}CloudShop{% endblock %} · CloudShop</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="{{ url_for('shop.index') }}"><span class="logo">☁</span> CloudShop</a>
+    <form class="search" action="{{ url_for('shop.index') }}">
+      <input name="q" placeholder="Tìm điện thoại, laptop, phụ kiện..." value="{{ q or '' }}">
+      <button>Tìm</button>
+    </form>
+    <nav class="nav">
+      <a href="{{ url_for('shop.track') }}">Tra cứu đơn</a>
+      {% if current_user_name %}
+        {% if is_admin %}<a href="{{ url_for('admin.dashboard') }}">Quản trị</a>{% else %}<a href="{{ url_for('shop.my_orders') }}">Đơn của tôi</a>{% endif %}
+        <a href="{{ url_for('auth.account') }}">{{ current_user_name }}</a>
+        <a href="{{ url_for('auth.logout') }}">Đăng xuất</a>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}">Đăng nhập</a>
+      {% endif %}
+      <a class="cart-link" href="{{ url_for('shop.cart') }}">🛒 Giỏ hàng <span class="badge">{{ cart_count }}</span></a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat, m in msgs %}<div class="alert alert-{{ cat }}">{{ m }}</div>{% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <span>CloudShop · Demo mini project Điện toán đám mây · <a class="footer-link" href="{{ url_for('system.live') }}">Xem cân bằng tải trực tiếp</a></span>
+    <a class="server-chip" href="{{ url_for('system.system') }}" title="Máy chủ đang phục vụ request này">
+      Phục vụ bởi <b>{{ server.instance_id }}</b> · {{ server.availability_zone }}
+    </a>
+  </div>
+</footer>
+</body>
+</html>

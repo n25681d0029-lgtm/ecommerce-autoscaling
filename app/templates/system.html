@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Thông tin máy chủ{% endblock %}
+{% block content %}
+<h1>Máy chủ đang phục vụ bạn</h1>
+<p class="muted">Tải lại trang (F5) nhiều lần: khi có từ 2 instance trở lên, Application Load Balancer sẽ luân phiên chuyển request sang các instance khác nhau.</p>
+<div class="stats">
+  <div class="stat"><span>Instance ID</span><b>{{ info.instance_id }}</b></div>
+  <div class="stat"><span>Availability Zone</span><b>{{ info.availability_zone }}</b></div>
+  <div class="stat"><span>Loại instance</span><b>{{ info.instance_type }}</b></div>
+  <div class="stat"><span>IP nội bộ</span><b>{{ info.private_ip }}</b></div>
+  <div class="stat"><span>Số vCPU</span><b>{{ cpus }}</b></div>
+  <div class="stat"><span>Tải CPU (1/5/15 phút)</span><b>{% if load %}{{ '%.2f / %.2f / %.2f'|format(*load) }}{% else %}không hỗ trợ{% endif %}</b></div>
+  <div class="stat"><span>Thời gian chạy</span><b>{{ (uptime // 60) }} phút {{ uptime % 60 }} giây</b></div>
+  <div class="stat"><span>Worker PID / số request đã xử lý</span><b>{{ pid }} / {{ requests }}</b></div>
+  <div class="stat"><span>Cơ sở dữ liệu</span><b>{{ 'Amazon RDS MySQL' if backend == 'mysql' else 'SQLite (cục bộ)' }}</b></div>
+</div>
+{% endblock %}

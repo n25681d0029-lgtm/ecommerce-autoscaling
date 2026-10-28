@@ -1,0 +1,5 @@
+# Công cụ chạy trên máy cá nhân hoặc Kaggle: kiểm thử tải, thu số liệu, vẽ biểu đồ
+locust>=2.20
+boto3>=1.34
+matplotlib>=3.8
+pytest>=8                  # chạy bộ kiểm thử: python -m pytest

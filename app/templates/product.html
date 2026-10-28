@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ p.name }}{% endblock %}
+{% block content %}
+<p class="crumb"><a href="{{ url_for('shop.index') }}">Trang chủ</a> › <a href="{{ url_for('shop.index', cat=p.category.slug) }}">{{ p.category.name }}</a> › {{ p.name }}</p>
+<div class="detail">
+  <img src="{{ url_for('shop.product_image', pid=p.id) }}" alt="{{ p.name }}">
+  <div>
+    <h1>{{ p.name }}</h1>
+    <p class="muted">Mã sản phẩm: {{ p.sku }} · {% if p.stock > 0 %}Còn {{ p.stock }} sản phẩm{% else %}<b class="warn-text">Hết hàng</b>{% endif %}</p>
+    <div class="price big">{{ p.price|vnd }}</div>
+    <p>{{ p.description }}</p>
+    <form method="post" action="{{ url_for('shop.cart_add', pid=p.id) }}" class="row">
+      <input type="number" name="qty" value="1" min="1" max="{{ [10, p.stock]|min if p.stock > 0 else 1 }}" class="qty">
+      <button class="btn" {{ 'disabled' if p.stock <= 0 }}>{{ 'Thêm vào giỏ hàng' if p.stock > 0 else 'Hết hàng' }}</button>
+    </form>
+  </div>
+</div>
+{% if related %}
+<h2>Sản phẩm cùng danh mục</h2>
+<div class="grid">
+  {% for r in related %}
+  <article class="card">
+    <a href="{{ url_for('shop.product_detail', pid=r.id) }}"><img src="{{ url_for('shop.product_image', pid=r.id) }}" alt="{{ r.name }}"></a>
+    <div class="card-body"><a class="pname" href="{{ url_for('shop.product_detail', pid=r.id) }}">{{ r.name }}</a><div class="price">{{ r.price|vnd }}</div></div>
+  </article>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

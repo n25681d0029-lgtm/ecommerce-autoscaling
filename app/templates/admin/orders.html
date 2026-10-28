@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Quản lý đơn hàng{% endblock %}
+{% block content %}
+{% set active = 'orders' %}{% include "admin/_nav.html" %}
+<div class="row between"><h1>Đơn hàng</h1><a class="btn btn-ghost" href="{{ url_for('admin.orders_csv', status=status or None, q=q or None) }}">Xuất CSV</a></div>
+<div class="chips">
+  <a class="{{ 'active' if not status }}" href="{{ url_for('admin.orders', q=q or None) }}">Tất cả ({{ counts.values()|sum }})</a>
+  {% for s in statuses %}<a class="{{ 'active' if s == status }}" href="{{ url_for('admin.orders', status=s, q=q or None) }}">{{ s }} ({{ counts.get(s, 0) }})</a>{% endfor %}
+</div>
+<form class="row filter">
+  {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+  <input name="q" value="{{ q }}" placeholder="Mã đơn, số điện thoại hoặc tên khách">
+  <button class="btn btn-ghost">Lọc</button>
+</form>
+<table class="table">
+  <thead><tr><th>Mã</th><th>Thời gian (UTC)</th><th>Khách hàng</th><th>SĐT</th><th class="r">Tổng</th><th>Máy chủ tạo đơn</th><th>Trạng thái</th></tr></thead>
+  <tbody>
+  {% for o in items %}
+    <tr>
+      <td><a href="{{ url_for('shop.order_view', code=o.code) }}">{{ o.code }}</a></td><td>{{ o.created_at.strftime('%d/%m %H:%M') }}</td><td>{{ o.customer_name }}</td><td>{{ o.phone }}</td><td class="r">{{ o.total|vnd }}</td><td class="mono">{{ o.served_by }}</td>
+      <td>{% if o.status == 'Đã hủy' %}<span class="muted">Đã hủy</span>{% else %}<form method="post" action="{{ url_for('admin.order_status', oid=o.id) }}"><select name="status" onchange="this.form.submit()">{% for s in statuses %}<option {{ 'selected' if s == o.status }}>{{ s }}</option>{% endfor %}</select></form>{% endif %}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7">Không có đơn hàng phù hợp.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="muted small">Hiển thị tối đa 200 đơn mới nhất. Chuyển đơn sang “Đã hủy” sẽ hoàn lại tồn kho và không thể mở lại.</p>
+{% endblock %}

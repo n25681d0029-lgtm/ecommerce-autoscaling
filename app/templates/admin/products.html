@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Quản lý sản phẩm{% endblock %}
+{% block content %}
+{% set active = 'products' %}{% include "admin/_nav.html" %}
+<div class="row between"><h1>Sản phẩm</h1>
+  <div class="row">
+    <form method="post" action="{{ url_for('admin.restock') }}" onsubmit="return confirm('Đưa tồn kho mọi sản phẩm lên tối thiểu {{ restock_level }}?')">
+      <button class="btn btn-ghost" title="Tiện dùng sau khi kiểm thử tải làm cạn kho">Bổ sung kho (≥ {{ restock_level }})</button>
+    </form>
+    <a class="btn" href="{{ url_for('admin.product_form') }}">+ Thêm sản phẩm</a>
+  </div>
+</div>
+<form class="row filter">
+  <input name="q" value="{{ q }}" placeholder="Tìm theo tên hoặc SKU">
+  <button class="btn btn-ghost">Tìm</button>
+  {% if q %}<a href="{{ url_for('admin.products') }}">Bỏ lọc</a>{% endif %}
+</form>
+<table class="table">
+  <thead><tr><th>SKU</th><th>Tên</th><th>Danh mục</th><th class="r">Giá</th><th class="r">Tồn</th><th>Hiển thị</th><th></th></tr></thead>
+  <tbody>
+  {% for p in items %}
+    <tr><td>{{ p.sku }}</td><td>{{ p.name }}</td><td>{{ p.category.name }}</td><td class="r">{{ p.price|vnd }}</td><td class="r {{ 'warn' if p.stock < 10 }}">{{ p.stock }}</td><td>{{ '✔' if p.is_active else '—' }}</td><td><a href="{{ url_for('admin.product_form', pid=p.id) }}">Sửa</a></td></tr>
+  {% else %}
+    <tr><td colspan="7">Không có sản phẩm phù hợp.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

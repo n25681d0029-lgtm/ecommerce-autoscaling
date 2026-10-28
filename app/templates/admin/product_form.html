@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Sửa' if p else 'Thêm' }} sản phẩm{% endblock %}
+{# Giữ lại giá trị vừa nhập khi form bị báo lỗi #}
+{% macro val(field, default='') -%}
+  {{ request.form.get(field, p[field] if p else default) if request.method == 'POST' else (p[field] if p else default) }}
+{%- endmacro %}
+{% block content %}
+{% set active = 'products' %}{% include "admin/_nav.html" %}
+<h1>{{ 'Sửa sản phẩm' if p else 'Thêm sản phẩm' }}</h1>
+<form method="post" class="form">
+  <label>Mã SKU<input name="sku" required maxlength="40" value="{{ val('sku') }}"></label>
+  <label>Tên sản phẩm<input name="name" required maxlength="160" value="{{ val('name') }}"></label>
+  <label>Danh mục<select name="category_id">{% for c in cats %}<option value="{{ c.id }}" {{ 'selected' if val('category_id')|string == c.id|string }}>{{ c.name }}</option>{% endfor %}</select></label>
+  <label>Giá (đồng)<input type="number" name="price" min="0" required value="{{ val('price') }}"></label>
+  <label>Tồn kho<input type="number" name="stock" min="0" required value="{{ val('stock', 0) }}"></label>
+  <label>Màu ảnh minh họa (0–359)<input type="number" name="hue" min="0" max="359" value="{{ val('hue', 210) }}"></label>
+  <label>Mô tả<textarea name="description" rows="3">{{ val('description') }}</textarea></label>
+  <label class="check"><input type="checkbox" name="is_active" {{ 'checked' if (request.form.get('is_active') if request.method == 'POST' else (not p or p.is_active)) }}> Hiển thị trên cửa hàng</label>
+  <button class="btn">Lưu</button>
+</form>
+{% endblock %}
