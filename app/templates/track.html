@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Tra cứu đơn hàng{% endblock %}
+{% block content %}
+<div class="auth">
+  <form method="post" class="sheet form">{{ csrf_field() }}
+    <h1>Tra cứu đơn</h1>
+    <p class="muted" style="margin:0">Nhập mã in trên hóa đơn, dạng <span class="mono">DH26110812AB3F</span>.</p>
+    <label class="field">Mã đơn hàng<input name="code" required placeholder="DH…" class="mono" autocomplete="off" style="text-transform:uppercase"></label>
+    <button class="btn">Tra cứu</button>
+    <p class="alt">Đã có tài khoản? <a href="{{ url_for('shop.my_orders') }}">Xem tất cả đơn của bạn</a>.</p>
+  </form>
+</div>
+{% endblock %}

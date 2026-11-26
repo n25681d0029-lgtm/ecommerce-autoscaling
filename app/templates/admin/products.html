@@ -1,0 +1,62 @@
+{% extends "admin/_layout.html" %}
+{% set active = 'products' %}
+{% block title %}Quản lý sản phẩm{% endblock %}
+{% block admin %}
+<div class="page-head"><h1>Sản phẩm</h1>
+  <div class="row">
+    <form method="post" action="{{ url_for('admin.restock') }}" data-confirm="Đưa tồn kho mọi sản phẩm lên tối thiểu {{ restock_level }}?">{{ csrf_field() }}
+      <button class="btn btn-ghost btn-sm" title="Tiện dùng sau khi kiểm thử tải làm cạn kho">Bổ sung kho (≥ {{ restock_level }})</button>
+    </form>
+    <a class="btn btn-sm" href="{{ url_for('admin.product_form') }}">+ Thêm sản phẩm</a>
+  </div>
+</div>
+<div class="sync-box {{ 'error' if sync.last_error }}">
+  <div>
+    <b>Đồng bộ sản phẩm:</b> <code>{{ sync.store }}</code>{% if sync.mirror %} · bản sao: <code>{{ sync.mirror }}</code>{% endif %}<br>
+    <span class="muted small">
+      {% if sync.last_error %}Lỗi lần gần nhất: {{ sync.last_error }}
+      {% elif sync.last_sync %}Đồng bộ lần cuối {{ sync.last_sync.strftime('%H:%M:%S') }} (UTC).
+      {% else %}Chưa đồng bộ.{% endif %}
+      {% if sync.kind == 'local' %}Để máy khác thấy thay đổi: commit &amp; push thư mục <code>catalog/</code> lên git, máy kia <code>git pull</code>.{% endif %}
+    </span>
+  </div>
+  <form method="post" action="{{ url_for('admin.sync_now') }}">{{ csrf_field() }}<button class="btn btn-ghost btn-sm">Đồng bộ ngay</button></form>
+</div>
+
+{% macro u() -%}{{ url_for('admin.products', **dict({'q': q or None, 'cat': cat or None, 'view': view or None}, **kwargs)) }}{%- endmacro %}
+<div class="chips">
+  <a class="chip {{ 'on' if not cat }}" href="{{ u(cat=None) }}">Mọi danh mục</a>
+  {% for c in cats %}<a class="chip {{ 'on' if c.slug == cat }}" href="{{ u(cat=None if c.slug == cat else c.slug) }}">{{ c.name }}</a>{% endfor %}
+</div>
+<div class="chips">
+  {% for k, label in views.items() %}<a class="chip {{ 'on' if k == view }}" href="{{ u(view=None if k == view else k) }}">{{ label }}</a>{% endfor %}
+</div>
+<form class="toolbar">
+  {% if cat %}<input type="hidden" name="cat" value="{{ cat }}">{% endif %}
+  {% if view %}<input type="hidden" name="view" value="{{ view }}">{% endif %}
+  <input name="q" value="{{ q }}" placeholder="Tìm theo tên hoặc SKU">
+  <button class="btn btn-ghost btn-sm">Tìm</button>
+  <span class="small muted">{{ items|length }} sản phẩm</span>
+  {% if q or cat or view %}<a class="small" href="{{ url_for('admin.products') }}">Bỏ lọc</a>{% endif %}
+</form>
+<div class="table-wrap"><table class="table">
+  <thead><tr><th></th><th>SKU</th><th>Tên</th><th>Danh mục</th><th class="r">Giá</th><th class="r">Tồn</th><th>Trạng thái</th><th></th></tr></thead>
+  <tbody>
+  {% for p in items %}
+    <tr><td><img class="thumb" src="{{ product_img_url(p) }}" alt=""></td>
+      <td class="num">{{ p.sku }}</td>
+      <td><a href="{{ url_for('admin.product_form', pid=p.id) }}">{{ p.name }}</a>{% if p.photos|length > 1 %} <span class="muted small mono">· {{ p.photos|length }} ảnh</span>{% endif %}</td>
+      <td>{{ p.category.name }}</td><td class="r num">{{ p.price|vnd }}</td>
+      <td class="r num {{ 'bad' if p.stock <= 0 else ('warn' if p.stock < 10) }}">{{ p.stock }}</td>
+      <td>{% if p.is_active %}<span class="pill s-xong">Đang bán</span>{% else %}<span class="pill hidden">Đang ẩn</span>{% endif %}</td>
+      <td><div class="actions">
+        <a href="{{ url_for('shop.product_detail', pid=p.id) }}" title="Xem trên cửa hàng" {{ 'hidden' if not p.is_active }}>Xem</a>
+        <a href="{{ url_for('admin.product_form', pid=p.id) }}">Sửa</a>
+        <form method="post" action="{{ url_for('admin.product_delete', pid=p.id) }}" data-confirm="Xóa “{{ p.name }}”? Sản phẩm biến mất khỏi cửa hàng trên mọi máy.">{{ csrf_field() }}
+          <button class="link-btn">Xóa</button></form></div></td></tr>
+  {% else %}
+    <tr><td colspan="8" class="muted">Không có sản phẩm phù hợp.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endblock %}

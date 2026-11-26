@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% set titles = {400: "Yêu cầu không hợp lệ", 403: "Không có quyền truy cập", 404: "Không tìm thấy trang",
+                 413: "File tải lên quá lớn", 500: "Máy chủ gặp sự cố"} %}
+{% block title %}{{ titles.get(code, "Lỗi") }}{% endblock %}
+{% block content %}
+<div class="error-box sheet">
+  <div class="error-code">{{ code }}</div>
+  <h1>{{ titles.get(code, "Đã xảy ra lỗi") }}</h1>
+  {% if code == 404 %}
+    <p>Trang hoặc sản phẩm bạn tìm không tồn tại hoặc đã ngừng bán.</p>
+  {% elif code == 400 and csrf %}
+    <p>Phiên làm việc đã hết hạn hoặc form được gửi từ trang khác. Hãy quay lại, tải lại trang rồi thử lại.</p>
+  {% elif code == 400 %}
+    <p>Dữ liệu gửi lên không hợp lệ.</p>
+  {% elif code == 403 %}
+    <p>Bạn không có quyền thực hiện thao tác này.</p>
+  {% elif code == 413 %}
+    <p>Ảnh sản phẩm tối đa {{ max_upload_mb }} MB. Hãy chọn ảnh nhỏ hơn rồi thử lại.</p>
+  {% else %}
+    <p>Request này gặp lỗi trên máy chủ <b class="mono">{{ server.instance_id }}</b>. Hãy thử lại sau ít phút; Load Balancer sẽ chuyển bạn sang máy chủ khỏe nếu máy này gặp sự cố.</p>
+  {% endif %}
+  <div class="row" style="justify-content:center;margin-top:18px">
+    <a class="btn" href="{{ url_for('shop.index') }}">Về trang chủ</a>
+    <a class="btn btn-ghost" href="javascript:history.back()">Quay lại</a>
+  </div>
+</div>
+{% endblock %}

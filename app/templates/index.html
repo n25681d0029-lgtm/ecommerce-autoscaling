@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "_macros.html" import product_card %}
+{% block title %}{{ current_cat.name if current_cat else ('Tìm “' ~ q ~ '”' if q else 'Trang chủ') }}{% endblock %}
+{% block content %}
+{% if landing and promo %}{% include "_promo.html" %}{% endif %}
+
+{% if recent %}
+<div class="section-title"><h2>Bạn vừa xem</h2><span>{{ recent|length }} sản phẩm</span></div>
+<div class="grid compact" style="margin-bottom:38px">
+  {% for p in recent %}{{ product_card(p, show_add=False) }}{% endfor %}
+</div>
+{% endif %}
+
+<div class="shelf-head" id="ke-hang">
+  <h2>{% if q %}Kết quả cho “{{ q }}”{% elif current_cat %}{{ current_cat.name }}{% else %}Kệ hàng{% endif %}<small>{{ total }} sản phẩm</small></h2>
+  {% if q or current_cat or price or instock %}<a class="small" href="{{ url_for('shop.index') }}">Bỏ tất cả bộ lọc</a>{% endif %}
+</div>
+
+{# f(...): URL trang chủ giữ nguyên bộ lọc hiện tại, chỉ đổi các tham số truyền vào, về trang 1 #}
+{% macro f() -%}{{ url_for('shop.index', **dict(filters, page=None, **kwargs)) }}{%- endmacro %}
+<div class="filters">
+  {% for key, r in price_ranges.items() %}
+    <a class="chip {{ 'on' if price == key }}" href="{{ f(price=None if price == key else key) }}">{{ r[0] }}</a>
+  {% endfor %}
+  <span class="sep"></span>
+  <a class="chip {{ 'on' if instock }}" href="{{ f(instock=None if instock else '1') }}">Chỉ hàng còn</a>
+  <form class="sort">
+    {% for k, v in filters.items() if v and k != 'sort' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    <label for="sort">Sắp xếp</label>
+    <select id="sort" name="sort" data-autosubmit>
+      {% for k, label in sorts %}<option value="{{ k }}" {{ 'selected' if sort == k }}>{{ label }}</option>{% endfor %}
+    </select>
+    <noscript><button class="btn btn-sm">Áp dụng</button></noscript>
+  </form>
+</div>
+
+{% if products %}
+<div class="grid">
+  {% for p in products %}{{ product_card(p) }}{% endfor %}
+</div>
+{% else %}
+<div class="empty">
+  <b>Kệ này đang trống.</b>
+  <p class="muted">Không có sản phẩm khớp bộ lọc{% if q %} cho “{{ q }}”{% endif %}. Thử bỏ bớt điều kiện hoặc tìm từ khác.</p>
+  <a class="btn" href="{{ url_for('shop.index') }}">Xem tất cả sản phẩm</a>
+</div>
+{% endif %}
+
+{% if pages > 1 %}
+<nav class="pager" aria-label="Phân trang">
+  {% if page > 1 %}<a href="{{ url_for('shop.index', **dict(filters, page=page - 1)) }}" aria-label="Trang trước">←</a>{% else %}<span class="off">←</span>{% endif %}
+  {% for i in window %}
+    {% if i is none %}<span class="gap">…</span>
+    {% elif i == page %}<span class="on" aria-current="page">{{ i }}</span>
+    {% else %}<a href="{{ url_for('shop.index', **dict(filters, page=i)) }}">{{ i }}</a>{% endif %}
+  {% endfor %}
+  {% if page < pages %}<a href="{{ url_for('shop.index', **dict(filters, page=page + 1)) }}" aria-label="Trang sau">→</a>{% else %}<span class="off">→</span>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "admin/_layout.html" %}
+{% from "_macros.html" import status_pill %}
+{% set active = 'dashboard' %}
+{% block title %}Quản trị{% endblock %}
+{% block admin %}
+<div class="page-head"><h1>Tổng quan</h1><span class="mono small muted">cập nhật {{ server_now.strftime('%H:%M:%S') }} UTC · {{ server.instance_id }}</span></div>
+<div class="kpis">
+  <div class="kpi"><span>Doanh thu</span><b>{{ stats.revenue|vnd }}</b><small>trừ đơn hủy</small></div>
+  <div class="kpi"><span>Tổng số đơn</span><b>{{ stats.orders }}</b><small>{{ stats.today }} đơn hôm nay</small></div>
+  <div class="kpi"><span>Giá trị TB / đơn</span><b>{{ stats.avg|vnd }}</b><small>đơn chưa hủy</small></div>
+  <div class="kpi"><span>Chờ xử lý</span><b class="{{ 'alert-num' if stats.pending }}">{{ stats.pending }}</b><small><a href="{{ url_for('admin.orders', status='Mới') }}">mới</a> + đã xác nhận</small></div>
+  <div class="kpi"><span>Sản phẩm</span><b>{{ stats.products }}</b><small><a href="{{ url_for('admin.products', view='low') }}">{{ stats.low_stock }} sắp hết hàng</a></small></div>
+</div>
+
+<div class="section-title"><h2>Doanh thu 7 ngày gần nhất</h2><span>UTC · trừ đơn hủy · rê chuột để xem số tiền</span></div>
+<div class="bars">
+  {% for d in daily %}
+  <div class="bar-col {{ 'today' if loop.last }}" title="{{ d.label }}: {{ d.orders }} đơn, {{ d.revenue|vnd }}">
+    <div class="bar-val">{{ d.orders }} đơn</div>
+    <div class="bar-track"><i style="height:{{ d.pct }}%"></i></div>
+    <div class="bar-label">{{ 'Hôm nay' if loop.last else d.label }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="two-col">
+  <section>
+    <div class="section-title"><h2>Đơn mới nhất</h2><span><a href="{{ url_for('admin.orders') }}">tất cả →</a></span></div>
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>Mã</th><th>Khách</th><th>Trạng thái</th><th class="r">Tổng</th></tr></thead>
+      <tbody>{% for o in recent %}<tr><td class="num"><a href="{{ url_for('shop.order_view', code=o.code) }}">{{ o.code }}</a></td><td>{{ o.customer_name }}</td><td>{{ status_pill(o.status) }}</td><td class="r num">{{ o.total|vnd }}</td></tr>{% else %}<tr><td colspan="4" class="muted">Chưa có đơn.</td></tr>{% endfor %}</tbody>
+    </table></div>
+    <div class="section-title mt"><h2>Bán chạy nhất</h2></div>
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>#</th><th>Sản phẩm</th><th class="r">Đã bán</th><th class="r">Doanh thu</th></tr></thead>
+      <tbody>{% for name, qty, rev in top %}<tr><td class="num muted">{{ loop.index }}</td><td>{{ name }}</td><td class="r num">{{ qty }}</td><td class="r num">{{ rev|vnd }}</td></tr>{% else %}<tr><td colspan="4" class="muted">Chưa có dữ liệu.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+  <section>
+    <div class="section-title"><h2>Đơn theo máy chủ</h2></div>
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>Instance</th><th class="r">Số đơn</th></tr></thead>
+      <tbody>{% for inst, n in by_instance %}<tr><td class="num">{{ inst }}</td><td class="r num">{{ n }}</td></tr>{% else %}<tr><td colspan="2" class="muted">Chưa có dữ liệu.</td></tr>{% endfor %}</tbody>
+    </table></div>
+    <p class="muted small">Khi Auto Scaling thêm instance, các đơn mới sẽ được phân bổ cho nhiều máy chủ khác nhau.</p>
+    <div class="section-title mt"><h2>Sắp hết hàng</h2><span><a href="{{ url_for('admin.products', view='low') }}">lọc →</a></span></div>
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>Sản phẩm</th><th class="r">Tồn</th></tr></thead>
+      <tbody>{% for p in low %}<tr><td><a href="{{ url_for('admin.product_form', pid=p.id) }}">{{ p.name }}</a></td><td class="r num {{ 'bad' if p.stock <= 0 else 'warn' }}">{{ p.stock }}</td></tr>{% else %}<tr><td colspan="2" class="muted">Không có sản phẩm nào dưới 10.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+</div>
+{% endblock %}

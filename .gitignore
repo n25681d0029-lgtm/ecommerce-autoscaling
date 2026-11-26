@@ -1,0 +1,30 @@
+# môi trường ảo
+py_cloudshop/
+venv/
+.venv/
+
+# cache
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# bí mật, không đẩy lên
+.env
+deploy.env
+*.pem
+*.key
+credentials
+
+# dữ liệu local
+instance/
+*.db
+*.log
+
+# file tạm khi ghi catalog/ (thư mục catalog/ thì PHẢI đưa lên git)
+catalog/.catalog-*
+catalog/images/.img-*
+
+# khác
+.vscode/
+.idea/
+*.zip

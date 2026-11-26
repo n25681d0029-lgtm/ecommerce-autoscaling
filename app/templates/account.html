@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Tài khoản{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Tài khoản</h1></div>
+<div class="two-col">
+  <div class="info-card">
+    <h3>Thông tin</h3>
+    <dl>
+      <dt>Họ tên</dt><dd>{{ user.full_name }}</dd>
+      <dt>Email</dt><dd class="mono">{{ user.email }}</dd>
+      <dt>Vai trò</dt><dd>{{ 'Quản trị viên' if user.is_admin else 'Khách hàng' }}</dd>
+      <dt>Tham gia</dt><dd>{{ user.created_at.strftime('%d/%m/%Y') }}</dd>
+    </dl>
+    <p style="margin:16px 0 0" class="row">
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('shop.my_orders') }}">Đơn hàng của tôi</a>
+      {% if user.is_admin %}<a class="btn btn-ghost btn-sm" href="{{ url_for('admin.dashboard') }}">Trang quản trị</a>{% endif %}
+    </p>
+  </div>
+  <form method="post" class="sheet form">{{ csrf_field() }}
+    <h2>Đổi mật khẩu</h2>
+    <label class="field">Mật khẩu hiện tại<input type="password" name="old_password" required autocomplete="current-password"></label>
+    <label class="field">Mật khẩu mới <small>tối thiểu 6 ký tự</small><input type="password" name="new_password" minlength="6" required autocomplete="new-password"></label>
+    <label class="field">Nhập lại mật khẩu mới<input type="password" name="confirm_password" minlength="6" required autocomplete="new-password"></label>
+    <button class="btn">Đổi mật khẩu</button>
+  </form>
+</div>
+{% endblock %}

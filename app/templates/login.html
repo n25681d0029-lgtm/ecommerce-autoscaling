@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Đăng nhập{% endblock %}
+{% block content %}
+<div class="auth">
+  <form method="post" class="sheet form">{{ csrf_field() }}
+    <h1>Đăng nhập</h1>
+    <label class="field">Email<input type="email" name="email" required autocomplete="email" value="{{ request.form.get('email', '') }}"></label>
+    <label class="field">Mật khẩu<input type="password" name="password" required autocomplete="current-password"></label>
+    <button class="btn">Đăng nhập</button>
+    <p class="alt">Chưa có tài khoản? <a href="{{ url_for('auth.register') }}">Đăng ký</a> để theo dõi đơn hàng của bạn.</p>
+  </form>
+</div>
+{% endblock %}

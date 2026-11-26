@@ -1,0 +1,84 @@
+{# Banner trang chủ: 1 banner lớn + dải cam kết + 3 banner danh mục. Giá "chỉ từ" lấy từ CSDL (biến promo). #}
+<section class="promo" aria-label="Ưu đãi nổi bật">
+  <div class="promo-main">
+    <svg class="promo-art" viewBox="0 0 600 460" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <radialGradient id="pg-glow"><stop offset="0" stop-color="#ff8fe0"/><stop offset=".55" stop-color="#8a45ff"/><stop offset="1" stop-color="#8a45ff" stop-opacity="0"/></radialGradient>
+        <linearGradient id="pg-screen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2be4ff"/><stop offset="1" stop-color="#6b3cff"/></linearGradient>
+        <linearGradient id="pg-phone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb23f"/><stop offset="1" stop-color="#ff4f8b"/></linearGradient>
+        <linearGradient id="pg-pod" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6d41d6"/><stop offset="1" stop-color="#2a1260"/></linearGradient>
+        <path id="pg-star" d="M0-12 3-3 12 0 3 3 0 12-3 3-12 0-3-3z"/>
+      </defs>
+      <circle cx="300" cy="215" r="205" fill="url(#pg-glow)" opacity=".85"/>
+      <circle cx="300" cy="215" r="150" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="2" stroke-dasharray="3 10"/>
+      <!-- bục trưng bày -->
+      <path d="M92 388v26c0 19 93 34 208 34s208-15 208-34v-26z" fill="url(#pg-pod)"/>
+      <ellipse cx="300" cy="388" rx="208" ry="34" fill="#8f66f2"/>
+      <ellipse cx="300" cy="388" rx="208" ry="34" fill="none" stroke="#d9c8ff" stroke-width="2.5"/>
+      <ellipse cx="300" cy="386" rx="150" ry="20" fill="#b99bff" opacity=".55"/>
+      <!-- tai nghe -->
+      <g transform="translate(118 268) rotate(-10)">
+        <path d="M-40 34v-22a40 40 0 0 1 80 0v22" fill="none" stroke="#2be4ff" stroke-width="11" stroke-linecap="round"/>
+        <rect x="-54" y="22" width="26" height="50" rx="10" fill="#ff5fa2" stroke="#190a3a" stroke-width="4"/>
+        <rect x="28" y="22" width="26" height="50" rx="10" fill="#ff5fa2" stroke="#190a3a" stroke-width="4"/>
+      </g>
+      <!-- laptop -->
+      <rect x="172" y="138" width="256" height="170" rx="12" fill="#190a3a" stroke="#e6dcff" stroke-width="5"/>
+      <rect x="186" y="152" width="228" height="142" rx="4" fill="url(#pg-screen)"/>
+      <path d="M186 258l52-44 40 26 62-66 74 58v62H186z" fill="#fff" opacity=".2"/>
+      <path d="M312 172l-44 60h30l-12 44 50-66h-32z" fill="#ffd23f" stroke="#190a3a" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M140 312h320l34 40a8 8 0 0 1-6 13H112a8 8 0 0 1-6-13z" fill="#e6dcff" stroke="#190a3a" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M262 330h76l6 12h-88z" fill="#b9a5ee"/>
+      <!-- điện thoại -->
+      <g transform="rotate(12 482 292)">
+        <rect x="440" y="204" width="86" height="176" rx="15" fill="#190a3a" stroke="#ffd23f" stroke-width="5"/>
+        <rect x="450" y="216" width="66" height="152" rx="7" fill="url(#pg-phone)"/>
+        <rect x="470" y="222" width="26" height="7" rx="3.5" fill="#190a3a"/>
+        <circle cx="483" cy="292" r="19" fill="#fff" opacity=".9"/><path d="M477 282v20l17-10z" fill="#ff4f8b"/>
+      </g>
+      <!-- phiếu % và lấp lánh -->
+      <g transform="translate(92 150) rotate(-14)">
+        <rect x="-44" y="-26" width="88" height="52" rx="8" fill="#ffd23f" stroke="#190a3a" stroke-width="4"/>
+        <circle cx="-44" cy="0" r="9" fill="#2a1260"/><circle cx="44" cy="0" r="9" fill="#2a1260"/>
+        <text x="0" y="12" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="32" fill="#190a3a">%</text>
+      </g>
+      <use href="#pg-star" transform="translate(470 116) scale(1.7)" fill="#ffd23f"/>
+      <use href="#pg-star" transform="translate(150 96)" fill="#fff"/>
+      <use href="#pg-star" transform="translate(538 200) scale(.8)" fill="#fff"/>
+      <use href="#pg-star" transform="translate(60 330) scale(.9)" fill="#2be4ff"/>
+      <use href="#pg-star" transform="translate(398 84) scale(.6)" fill="#ff8fe0"/>
+      <circle cx="210" cy="78" r="5" fill="#2be4ff"/><circle cx="548" cy="318" r="6" fill="#ffd23f"/><circle cx="36" cy="214" r="4" fill="#ff8fe0"/>
+    </svg>
+    <div class="promo-copy">
+      <span class="promo-kicker">Tháng {{ server_now.strftime('%m') }} · ShopNam.pro</span>
+      <h1 class="promo-title"><span class="l1">Lên đời</span><span class="l2">Máy mới</span></h1>
+      <span class="promo-ribbon">Điện thoại · Laptop · Phụ kiện</span>
+      <span class="promo-badge">Giá chỉ từ <b>{{ promo.from }}</b></span>
+      <span class="promo-badge">Miễn phí vận chuyển <b>toàn quốc</b></span>
+      <a class="promo-cta" href="#ke-hang">Mua ngay</a>
+    </div>
+    <ul class="promo-perks">
+      <li><svg viewBox="0 0 24 24"><path d="M3 7h18v10H3zM3 11h18M7 15h3"/></svg><span><b>Thanh toán COD</b>Nhận hàng mới trả tiền</span></li>
+      <li><svg viewBox="0 0 24 24"><path d="M2 7h11v9H2zM13 10h5l3 3v3h-8zM6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg><span><b>Giao hàng</b>Toàn quốc, 0 ₫ phí ship</span></li>
+      <li><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6zM9 12l2 2 4-4"/></svg><span><b>Giá niêm yết</b>Đã gồm VAT</span></li>
+      <li><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 1 3 6M4 19v-5h5"/></svg><span><b>Hủy đơn dễ</b>Khi shop chưa xác nhận</span></li>
+      <li><svg viewBox="0 0 24 24"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM16 16l5 5"/></svg><span><b>Tra cứu đơn</b>Bằng mã đơn hàng</span></li>
+    </ul>
+  </div>
+
+  {% if promo.cats %}
+  <div class="promo-subs">
+    {% for c in promo.cats %}
+    <a class="promo-sub v{{ loop.index }}" href="{{ url_for('shop.index', cat=c.slug) }}">
+      <span class="ps-copy">
+        <small>{{ c.count }} mẫu đang bán</small>
+        <strong>{{ c.name }}</strong>
+        <em>Chỉ từ <b>{{ c.from }}</b></em>
+        <span class="ps-cta">Xem ngay →</span>
+      </span>
+      <svg viewBox="30 20 160 150" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">{{ c.glyph|safe }}</g></svg>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>

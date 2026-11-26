@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "_macros.html" import stepper %}
+{% block title %}Giỏ hàng{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Giỏ hàng</h1>{% if items %}<a class="small" href="{{ url_for('shop.index') }}">← Mua thêm</a>{% endif %}</div>
+{% if items %}
+<div class="cart-layout">
+  <form id="cart-form" method="post" action="{{ url_for('shop.cart_update') }}">{{ csrf_field() }}
+    <div class="lines">
+      {% for it in items %}
+      <div class="line">
+        <a href="{{ url_for('shop.product_detail', pid=it.p.id) }}"><img src="{{ product_img_url(it.p) }}" alt=""></a>
+        <div>
+          <span class="sku">{{ it.p.sku }}</span><br>
+          <a class="pname" href="{{ url_for('shop.product_detail', pid=it.p.id) }}">{{ it.p.name }}</a>
+          <div class="small muted mono">{{ it.p.price|vnd }} / chiếc
+            · <button class="link-btn" form="rm-{{ it.p.id }}" title="Bỏ khỏi giỏ">bỏ ra</button></div>
+        </div>
+        {{ stepper('qty_' ~ it.p.id, it.qty, [10, it.p.stock]|min, min=0, autosubmit=True, small=True) }}
+        <div class="sub">{{ it.subtotal|vnd }}</div>
+      </div>
+      {% endfor %}
+      <div class="lines-foot">
+        <span class="small muted">Đặt số lượng về 0 để bỏ sản phẩm.</span>
+        <button class="btn btn-ghost btn-sm">Cập nhật giỏ</button>
+      </div>
+    </div>
+  </form>
+  <aside class="sticky">
+    <div class="receipt-wrap"><div class="receipt">
+      <h3>Tạm tính</h3>
+      <p class="center small muted">{{ items|length }} mặt hàng · {{ items|sum(attribute='qty') }} chiếc</p>
+      <hr>
+      {% for it in items %}
+      <div class="kv"><span>{{ it.qty }} × {{ it.p.sku }}</span><span>{{ it.subtotal|vnd }}</span></div>
+      {% endfor %}
+      <hr>
+      <div class="kv"><span>Phí giao hàng</span><span>Miễn phí</span></div>
+      <div class="kv total"><span>TỔNG</span><span>{{ total|vnd }}</span></div>
+      <p class="center small" style="margin:12px 0 0">Thanh toán khi nhận hàng</p>
+    </div></div>
+    <a class="btn btn-red btn-block" style="margin-top:20px" href="{{ url_for('shop.checkout') }}">Đặt hàng →</a>
+    <p class="note">Giỏ hàng nằm trong cookie đã ký bằng SECRET_KEY chung, nên vẫn còn nguyên khi request sau do instance khác xử lý.</p>
+  </aside>
+</div>
+{# Form "bỏ ra" đặt ngoài form cập nhật (và ngoài lưới) để phím Enter trong ô số lượng không kích hoạt nút xóa #}
+{% for it in items %}<form id="rm-{{ it.p.id }}" method="post" action="{{ url_for('shop.cart_remove', pid=it.p.id) }}" hidden>{{ csrf_field() }}</form>{% endfor %}
+{% else %}
+<div class="empty">
+  <b>Giỏ đang trống.</b>
+  <p class="muted">Ghé kệ hàng, bấm dấu <span class="mono">+</span> trên tem giá để thêm sản phẩm.</p>
+  <a class="btn" href="{{ url_for('shop.index') }}">Đi xem kệ hàng</a>
+</div>
+{% endif %}
+{% endblock %}

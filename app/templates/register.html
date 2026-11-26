@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Đăng ký{% endblock %}
+{% block content %}
+<div class="auth">
+  <form method="post" class="sheet form">{{ csrf_field() }}
+    <h1>Tạo tài khoản</h1>
+    <label class="field">Họ và tên<input name="full_name" required maxlength="120" autocomplete="name" value="{{ request.form.get('full_name', '') }}"></label>
+    <label class="field">Email<input type="email" name="email" required maxlength="120" autocomplete="email" value="{{ request.form.get('email', '') }}"></label>
+    <label class="field">Mật khẩu <small>tối thiểu 6 ký tự</small><input type="password" name="password" minlength="6" required autocomplete="new-password"></label>
+    <button class="btn">Đăng ký</button>
+    <p class="alt">Đã có tài khoản? <a href="{{ url_for('auth.login') }}">Đăng nhập</a>.</p>
+  </form>
+</div>
+{% endblock %}

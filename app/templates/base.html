@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ShopNam.pro{% endblock %} · ShopNam.pro</title>
+  <meta name="description" content="ShopNam.pro: điện thoại, laptop, phụ kiện công nghệ chính hãng, miễn phí vận chuyển, thanh toán khi nhận hàng.">
+  <meta name="theme-color" content="#16130f">
+  <link rel="icon" href="{{ url_for('static', filename='logo.svg') }}" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,800;1,900&family=JetBrains+Mono:wght@400;500;700;800&display=swap">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% set nav_cat = (current_cat.slug if current_cat else (p.category.slug if p and p.category else '')) %}
+<div class="ticker">
+  <div class="wrap">
+    <a href="{{ url_for('system.system') }}" title="Máy chủ đang trả lời request này (đổi khi Load Balancer chuyển sang instance khác)">
+      <span class="pulse"></span>đang phục vụ: {{ server.instance_id }} · {{ server.availability_zone }}</a>
+    <nav>
+      <a href="{{ url_for('shop.track') }}">Tra cứu đơn</a>
+      <a href="{{ url_for('system.live') }}">Cân bằng tải trực tiếp</a>
+      <span>COD toàn quốc</span>
+    </nav>
+  </div>
+</div>
+<header class="masthead">
+  <div class="wrap">
+    <a class="brand" href="{{ url_for('shop.index') }}" aria-label="ShopNam.pro – trang chủ">
+      <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><rect x="1.5" y="1.5" width="37" height="37" rx="3" fill="#16130f"/><rect x="8" y="9" width="24" height="6" rx="1" fill="#f3eee3"/><rect x="8" y="17.5" width="24" height="6" rx="1" fill="#f3eee3"/><rect x="8" y="26" width="24" height="6" rx="1" fill="#f3eee3"/><circle cx="28" cy="12" r="1.6" fill="#d23a1e"/><circle cx="28" cy="20.5" r="1.6" fill="#16130f"/><circle cx="28" cy="29" r="1.6" fill="#ffd23f" stroke="#16130f" stroke-width=".8"/></svg>
+      <span><b>ShopNam<i>.pro</i></b><small>điện thoại · laptop · phụ kiện</small></span>
+    </a>
+    <form class="search" action="{{ url_for('shop.index') }}" role="search">
+      <label class="sr-only" for="q">Tìm sản phẩm</label>
+      <input id="q" name="q" placeholder="Tìm điện thoại, laptop, mã SKU…" title="Phím tắt: /" value="{{ q or '' }}" autocomplete="off">
+      <button>Tìm</button>
+    </form>
+    <nav class="userbar">
+      {% if current_user_name %}
+        {% if is_admin %}<a href="{{ url_for('admin.dashboard') }}">Quản trị</a>{% else %}<a class="hide-sm" href="{{ url_for('shop.my_orders') }}">Đơn của tôi</a>{% endif %}
+        <a class="hide-sm" href="{{ url_for('auth.account') }}" title="Tài khoản">{{ current_user_name }}</a>
+        <form method="post" action="{{ url_for('auth.logout') }}">{{ csrf_field() }}<button class="hide-sm">Thoát</button></form>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}">Đăng nhập</a>
+      {% endif %}
+      <a class="cart-btn" href="{{ url_for('shop.cart') }}">Giỏ <span class="cart-count">{{ cart_count }}</span></a>
+    </nav>
+  </div>
+</header>
+<div class="catbar">
+  <div class="wrap">
+    <a class="{{ 'on' if request.endpoint == 'shop.index' and not nav_cat }}" href="{{ url_for('shop.index') }}"><i>00</i>Tất cả</a>
+    {% for slug, name, n in categories_nav %}
+    <a class="{{ 'on' if slug == nav_cat }}" href="{{ url_for('shop.index', cat=slug) }}"><i>{{ '%02d'|format(loop.index) }}</i>{{ name }}<sup>{{ n }}</sup></a>
+    {% endfor %}
+  </div>
+</div>
+<main class="wrap">
+  {% with msgs = get_flashed_messages(with_categories=true) %}{% if msgs %}
+  <div class="flashes" role="status">
+    {% for cat, m in msgs %}<div class="alert alert-{{ cat }}"><span>{{ m }}</span><button type="button" aria-label="Đóng">×</button></div>{% endfor %}
+  </div>
+  {% endif %}{% endwith %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="footer">
+  <div class="wrap footer-grid">
+    <div>
+      <p class="big">ShopNam<i>.pro</i></p>
+      <p>Cửa hàng demo cho mini project Điện toán đám mây: website chạy trên nhiều EC2 sau Application Load Balancer, tự thêm/bớt máy chủ theo lượng khách.</p>
+    </div>
+    <div>
+      <h4>Mua sắm</h4>
+      <ul>
+        <li><a href="{{ url_for('shop.index', sort='new') }}">Hàng mới về</a></li>
+        <li><a href="{{ url_for('shop.index', price='u1') }}">Dưới 1 triệu</a></li>
+        <li><a href="{{ url_for('shop.cart') }}">Giỏ hàng</a></li>
+        <li><a href="{{ url_for('shop.track') }}">Tra cứu đơn hàng</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Hệ thống</h4>
+      <ul>
+        <li><a href="{{ url_for('system.live') }}">Cân bằng tải trực tiếp</a></li>
+        <li><a href="{{ url_for('system.system') }}">Thông tin máy chủ</a></li>
+        <li><a href="{{ url_for('system.health') }}">/health</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Request này</h4>
+      <a class="server-chip" href="{{ url_for('system.system') }}" title="Máy chủ đang phục vụ request này">
+        <span>Phục vụ bởi</span><b>{{ server.instance_id }}</b><span>{{ server.availability_zone }}</span>
+      </a>
+    </div>
+  </div>
+  <div class="wrap footer-base">
+    <span>Thanh toán khi nhận hàng · Giá đã gồm VAT</span>
+    <span>Bấm F5 vài lần: dòng "Phục vụ bởi" đổi khi có nhiều instance</span>
+  </div>
+</footer>
+<script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</body>
+</html>

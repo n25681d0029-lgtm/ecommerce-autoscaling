@@ -1,0 +1,8 @@
+Flask>=3.0,<3.2
+SQLAlchemy>=2.0,<2.2
+PyMySQL>=1.1,<2
+cryptography>=42          # PyMySQL cần để xác thực caching_sha2_password của MySQL 8
+gunicorn>=22 ; sys_platform != "win32"
+waitress>=3.0
+Pillow>=10.3              # xử lý ảnh sản phẩm tải lên (kiểm tra, thu nhỏ, nén JPEG)
+boto3>=1.35.70            # đọc/ghi ảnh + catalog trên S3 (cần bản hỗ trợ ghi có điều kiện IfMatch)

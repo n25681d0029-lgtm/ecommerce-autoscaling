@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_pill %}
+{% block title %}Đơn hàng {{ order.code }}{% endblock %}
+{% block content %}
+{% set cancelled = order.status == 'Đã hủy' %}
+<div class="order-head">
+  <div>
+    <p class="crumb" style="margin:0 0 6px">Đơn hàng · đặt lúc {{ order.created_at.strftime('%H:%M %d/%m/%Y') }} (UTC)</p>
+    <h1>Đơn <span class="code">{{ order.code }}</span></h1>
+  </div>
+  {{ status_pill(order.status) }}
+</div>
+
+{% if cancelled %}<div class="cancelled-banner">Đơn hàng đã hủy. Tồn kho đã được hoàn lại.</div>{% endif %}
+<ol class="steps {{ 'cancelled' if cancelled }}" aria-label="Tiến trình đơn hàng">
+  {% for s in steps %}<li class="{{ 'now' if loop.index0 == step else ('done' if loop.index0 < step) }}">{{ s }}</li>{% endfor %}
+</ol>
+
+<div class="order-layout">
+  <div class="stack">
+    <div class="info-card">
+      <h3>Giao tới</h3>
+      <dl>
+        <dt>Người nhận</dt><dd>{{ order.customer_name }}</dd>
+        <dt>Điện thoại</dt><dd class="mono">{{ order.phone }}</dd>
+        <dt>Địa chỉ</dt><dd>{{ order.address }}</dd>
+        <dt>Thanh toán</dt><dd>Tiền mặt khi nhận hàng</dd>
+      </dl>
+    </div>
+    <div class="server-note">
+      Đơn được tạo bởi máy chủ <b>{{ order.served_by }}</b>; trang này đang do <b>{{ server.instance_id }}</b> hiển thị.
+      Các máy chủ khác nhau vẫn thấy cùng dữ liệu vì dùng chung một cơ sở dữ liệu (Amazon RDS khi chạy trên AWS).
+    </div>
+    {% if can_cancel %}
+    <form method="post" action="{{ url_for('shop.order_cancel', code=order.code) }}" data-confirm="Hủy đơn hàng {{ order.code }}?" class="row">
+      {{ csrf_field() }}
+      <button class="btn btn-danger">Hủy đơn hàng</button>
+      <span class="muted small">Chỉ hủy được khi cửa hàng chưa xác nhận đơn.</span>
+    </form>
+    {% endif %}
+    <p class="small muted">Lưu lại mã <b class="mono">{{ order.code }}</b> để <a href="{{ url_for('shop.track') }}">tra cứu đơn</a> sau này.</p>
+  </div>
+
+  <div class="receipt-wrap"><div class="receipt">
+    <h3>ShopNam.pro</h3>
+    <p class="center small">Hóa đơn bán lẻ · {{ order.code }}</p>
+    <hr>
+    {% for it in order.items %}
+    <div class="item"><div>{{ it.product_name }}</div>
+      <div class="kv"><span>{{ it.quantity }} × {{ it.price|vnd }}</span><span>{{ (it.price * it.quantity)|vnd }}</span></div></div>
+    {% endfor %}
+    <hr>
+    <div class="kv"><span>Số lượng</span><span>{{ units }} chiếc</span></div>
+    <div class="kv"><span>Phí giao hàng</span><span>0 ₫</span></div>
+    <div class="kv total"><span>TỔNG</span><span>{{ order.total|vnd }}</span></div>
+    <div class="barcode" aria-hidden="true"></div>
+    <p class="center small" style="margin:0">{{ order.code }} · {{ order.served_by }}</p>
+    <p class="center small" style="margin:8px 0 0">Cảm ơn quý khách!</p>
+  </div></div>
+</div>
+{% endblock %}

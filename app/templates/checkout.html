@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Đặt hàng{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Thông tin giao hàng</h1><a class="small" href="{{ url_for('shop.cart') }}">← Sửa giỏ hàng</a></div>
+<div class="checkout-layout">
+  <form method="post" class="sheet form">{{ csrf_field() }}
+    <label class="field">Họ và tên người nhận
+      <input name="name" required maxlength="120" autocomplete="name" value="{{ request.form.get('name', current_user_name or '') }}"></label>
+    <label class="field">Số điện thoại <small>9–15 chữ số, shipper sẽ gọi trước khi giao</small>
+      <input name="phone" required pattern="[0-9+ ]{9,15}" inputmode="tel" autocomplete="tel" value="{{ request.form.get('phone', '') }}"></label>
+    <label class="field">Địa chỉ nhận hàng <small>Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành</small>
+      <textarea name="address" rows="3" required maxlength="255" autocomplete="street-address">{{ request.form.get('address', '') }}</textarea></label>
+    <div class="form-actions">
+      <span class="small muted">Thanh toán tiền mặt khi nhận hàng (COD).</span>
+      <button class="btn btn-red">Xác nhận đặt hàng</button>
+    </div>
+  </form>
+  {% if summary %}
+  <aside class="sticky">
+    <div class="receipt-wrap"><div class="receipt">
+      <h3>Đơn của bạn</h3>
+      <hr>
+      {% for it in summary["items"] %}
+      <div class="item"><div>{{ it.p.name }}</div><div class="kv"><span>{{ it.qty }} × {{ it.p.price|vnd }}</span><span>{{ it.subtotal|vnd }}</span></div></div>
+      {% endfor %}
+      <hr>
+      <div class="kv"><span>Phí giao hàng</span><span>Miễn phí</span></div>
+      <div class="kv total"><span>TỔNG</span><span>{{ summary.total|vnd }}</span></div>
+    </div></div>
+  </aside>
+  {% endif %}
+</div>
+{% endblock %}

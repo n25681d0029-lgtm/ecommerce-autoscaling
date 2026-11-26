@@ -1,0 +1,110 @@
+{% extends "admin/_layout.html" %}
+{% set active = 'products' %}
+{% block title %}{{ 'Sửa' if p else 'Thêm' }} sản phẩm{% endblock %}
+{# Giữ lại giá trị vừa nhập khi form bị báo lỗi #}
+{% macro val(field, default='') -%}
+  {{ request.form.get(field, p[field] if p else default) if request.method == 'POST' else (p[field] if p else default) }}
+{%- endmacro %}
+{% block admin %}
+<p class="crumb"><a href="{{ url_for('admin.products') }}">Sản phẩm</a> / {{ p.sku if p else 'mới' }}</p>
+<div class="page-head form-wide">
+  <h1>{{ 'Sửa sản phẩm' if p else 'Thêm sản phẩm' }}</h1>
+  {% if p %}
+  <div class="row">
+    {% if p.is_active %}<a class="btn btn-ghost btn-sm" href="{{ url_for('shop.product_detail', pid=p.id) }}">Xem trên cửa hàng</a>{% endif %}
+    <form method="post" action="{{ url_for('admin.product_delete', pid=p.id) }}"
+          data-confirm="Xóa sản phẩm “{{ p.name }}”? Sản phẩm sẽ biến mất khỏi cửa hàng trên mọi máy; đơn hàng cũ vẫn giữ nguyên.">{{ csrf_field() }}
+      <button class="btn btn-danger btn-sm">Xóa sản phẩm</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+<form method="post" class="sheet form form-wide" enctype="multipart/form-data">{{ csrf_field() }}
+  <div class="row two">
+    <label class="field">Mã SKU <small>tối đa 40 ký tự, không trùng</small><input name="sku" required maxlength="40" value="{{ val('sku') }}" class="mono"></label>
+    <label class="field">Danh mục<select name="category_id">{% for c in cats %}<option value="{{ c.id }}" {{ 'selected' if val('category_id')|string == c.id|string }}>{{ c.name }}</option>{% endfor %}</select></label>
+  </div>
+  <label class="field">Tên sản phẩm<input name="name" required maxlength="160" value="{{ val('name') }}"></label>
+  <div class="row two">
+    <label class="field">Giá (đồng) <small id="price-preview">&nbsp;</small><input type="number" name="price" min="0" step="1" required value="{{ val('price') }}" class="mono" id="price-input"></label>
+    <label class="field">Tồn kho <small>&nbsp;</small><input type="number" name="stock" min="0" required value="{{ val('stock', 0) }}" class="mono"></label>
+  </div>
+
+  <fieldset class="upload">
+    <legend>Ảnh sản phẩm · tối đa {{ max_photos }}</legend>
+    {% set photos = p.photos if p else [] %}
+    {% if photos %}
+    <div class="photo-grid" id="old-photos">
+      {% for ph in photos %}
+      <div class="photo-item {{ 'cover' if loop.first }}">
+        <img src="{{ media_url(ph.key) }}" alt="Ảnh {{ loop.index }}">
+        <label class="check"><input type="radio" name="cover" value="{{ ph.key }}" {{ 'checked' if loop.first }}> Ảnh chính</label>
+        <label class="check danger-text"><input type="checkbox" name="remove_photo" value="{{ ph.key }}"> Xóa ảnh</label>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted small" style="margin:0">Chưa có ảnh: cửa hàng đang dùng ảnh minh họa theo màu bên dưới.</p>
+    {% endif %}
+    <label class="dropzone" id="dropzone">
+      <input type="file" name="images" id="img-input" multiple accept="image/jpeg,image/png,image/webp,image/gif">
+      <span>Kéo ảnh vào đây hoặc bấm để chọn</span>
+      <span class="small muted">JPG, PNG, WebP, GIF · mỗi ảnh ≤ {{ max_upload_mb }} MB · tự thu nhỏ còn cạnh dài 1000 px</span>
+    </label>
+    <div id="new-previews" class="photo-grid"></div>
+    {% if request.method == 'POST' %}<span class="small warn-text">Nếu đã chọn ảnh mới, hãy chọn lại trước khi lưu (trình duyệt không giữ file khi form báo lỗi).</span>{% endif %}
+  </fieldset>
+
+  <div class="row" style="align-items:flex-end">
+    <span class="hue-preview" id="hue-preview"></span>
+    <label class="field" style="flex:1">Màu ảnh minh họa (0–359) <small>dùng khi chưa có ảnh</small>
+      <input type="range" name="hue" min="0" max="359" value="{{ val('hue', 210) }}" id="hue-input"></label>
+  </div>
+  <label class="field">Mô tả <small>mỗi dòng một ý</small><textarea name="description" rows="4">{{ val('description') }}</textarea></label>
+  <div class="form-actions">
+    <label class="check"><input type="checkbox" name="is_active" {{ 'checked' if (request.form.get('is_active') if request.method == 'POST' else (not p or p.is_active)) }}> Hiển thị trên cửa hàng</label>
+    <div class="row"><a class="btn btn-ghost" href="{{ url_for('admin.products') }}">Hủy</a><button class="btn">Lưu sản phẩm</button></div>
+  </div>
+</form>
+<script>
+(function () {
+  var input = document.getElementById("img-input"), box = document.getElementById("new-previews"), dz = document.getElementById("dropzone");
+  var maxBytes = {{ max_upload_mb }} * 1024 * 1024, maxPhotos = {{ max_photos }};
+  function kept() { return document.querySelectorAll("input[name=remove_photo]:not(:checked)").length; }
+  function preview() {
+    box.innerHTML = "";
+    var files = Array.prototype.slice.call(input.files);
+    var big = files.filter(function (f) { return f.size > maxBytes; });
+    if (big.length) { alert("Ảnh quá lớn (tối đa {{ max_upload_mb }} MB): " + big.map(function (f) { return f.name; }).join(", ")); input.value = ""; return; }
+    if (kept() + files.length > maxPhotos) { alert("Tối đa " + maxPhotos + " ảnh mỗi sản phẩm (đang giữ " + kept() + " ảnh)."); input.value = ""; return; }
+    files.forEach(function (f) {
+      var d = document.createElement("div"), img = document.createElement("img"), s = document.createElement("span");
+      d.className = "photo-item new"; img.src = URL.createObjectURL(f); s.className = "small muted"; s.textContent = "Mới · " + Math.round(f.size / 1024) + " KB";
+      d.appendChild(img); d.appendChild(s); box.appendChild(d);
+    });
+  }
+  input.addEventListener("change", preview);
+  ["dragenter", "dragover"].forEach(function (e) { dz.addEventListener(e, function (ev) { ev.preventDefault(); dz.classList.add("over"); }); });
+  ["dragleave", "drop"].forEach(function (e) { dz.addEventListener(e, function () { dz.classList.remove("over"); }); });
+  dz.addEventListener("drop", function (ev) {
+    ev.preventDefault();
+    if (ev.dataTransfer && ev.dataTransfer.files.length) { input.files = ev.dataTransfer.files; preview(); }
+  });
+  // Đánh dấu ảnh chính / ảnh sắp xóa
+  document.querySelectorAll("#old-photos .photo-item").forEach(function (item) {
+    item.querySelector("input[type=radio]").addEventListener("change", function () {
+      document.querySelectorAll("#old-photos .photo-item").forEach(function (x) { x.classList.remove("cover"); });
+      item.classList.add("cover");
+    });
+    item.querySelector("input[type=checkbox]").addEventListener("change", function (e) { item.classList.toggle("removing", e.target.checked); });
+  });
+  // Xem trước màu minh họa và giá dạng 1.990.000 ₫
+  var hue = document.getElementById("hue-input"), dot = document.getElementById("hue-preview");
+  function paint() { dot.style.background = "hsl(" + hue.value + ",48%,62%)"; dot.title = "Màu " + hue.value; }
+  hue.addEventListener("input", paint); paint();
+  var price = document.getElementById("price-input"), pp = document.getElementById("price-preview");
+  function fmt() { var v = +price.value; pp.textContent = v ? "= " + v.toLocaleString("vi-VN") + " ₫" : " "; }
+  price.addEventListener("input", fmt); fmt();
+})();
+</script>
+{% endblock %}

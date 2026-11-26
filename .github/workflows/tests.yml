@@ -1,0 +1,19 @@
+# Chạy bộ kiểm thử tự động mỗi lần push/pull request lên GitHub
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"   # giống python3.11 cài trên EC2 (Amazon Linux 2023)
+      - run: pip install -r requirements.txt pytest
+      - run: python -m pytest -v
+      - name: Kiểm tra cú pháp các script
+        run: python -m py_compile scripts/*.py loadtest/locustfile.py

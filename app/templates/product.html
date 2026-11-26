@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "_macros.html" import product_card, stepper %}
+{% block title %}{{ p.name }}{% endblock %}
+{% block content %}
+<p class="crumb"><a href="{{ url_for('shop.index') }}">Trang chủ</a> / <a href="{{ url_for('shop.index', cat=p.category.slug) }}">{{ p.category.name }}</a> / {{ p.sku }}</p>
+<div class="detail">
+  <div class="gallery">
+    <div class="gallery-main">
+      <img id="main-photo" src="{{ product_img_url(p) }}" alt="{{ p.name }}">
+      {% if p.stock <= 0 %}<span class="stamp">Hết hàng</span>{% endif %}
+    </div>
+    {% if p.photos|length > 1 %}
+    <div class="gallery-thumbs" aria-label="Ảnh sản phẩm (phím ← → để chuyển)">
+      {% for ph in p.photos %}
+      <button type="button" class="{{ 'active' if loop.first }}" data-src="{{ media_url(ph.key) }}" aria-label="Ảnh {{ loop.index }}">
+        <img src="{{ media_url(ph.key) }}" alt="" loading="lazy"></button>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="buybox">
+    <div class="meta"><span>SKU <b>{{ p.sku }}</b></span><span>Danh mục <b>{{ p.category.name }}</b></span></div>
+    <h1>{{ p.name }}</h1>
+    <div><span class="tag big">{{ p.price|vnd }}</span></div>
+    {% if p.stock <= 0 %}<span class="stock out"><i></i>Hết hàng, đang chờ nhập thêm</span>
+    {% elif p.stock < 10 %}<span class="stock low"><i></i>Chỉ còn {{ p.stock }} sản phẩm</span>
+    {% else %}<span class="stock ok"><i></i>Còn hàng ({{ p.stock }})</span>{% endif %}
+    {% if p.description %}<p class="desc">{{ p.description }}</p>{% endif %}
+    {% if p.stock > 0 %}
+    <form method="post" action="{{ url_for('shop.cart_add', pid=p.id) }}" class="buy-row">{{ csrf_field() }}
+      {{ stepper('qty', 1, [max_qty, p.stock]|min) }}
+      <button class="btn">Thêm vào giỏ hàng</button>
+      <button class="btn btn-tag" name="buy_now" value="1">Mua ngay</button>
+    </form>
+    {% if in_cart %}<p class="small muted" style="margin:0">Đã có {{ in_cart }} trong <a href="{{ url_for('shop.cart') }}">giỏ hàng</a>.</p>{% endif %}
+    {% else %}
+    <button class="btn" disabled>Hết hàng</button>
+    {% endif %}
+    <ul class="perks">
+      <li>Thanh toán khi nhận hàng</li>
+      <li>Tối đa {{ max_qty }} chiếc mỗi mặt hàng</li>
+      <li>Tự hủy đơn khi chưa xác nhận</li>
+      <li>Tra cứu đơn bằng mã</li>
+    </ul>
+  </div>
+</div>
+
+{% if related %}
+<div class="section-title"><h2>Cùng kệ {{ p.category.name }}</h2><span><a href="{{ url_for('shop.index', cat=p.category.slug) }}">xem tất cả →</a></span></div>
+<div class="grid">{% for r in related %}{{ product_card(r) }}{% endfor %}</div>
+{% endif %}
+
+{% if recent %}
+<div class="section-title mt"><h2>Bạn vừa xem</h2></div>
+<div class="grid compact">{% for r in recent %}{{ product_card(r, show_add=False) }}{% endfor %}</div>
+{% endif %}
+{% endblock %}
